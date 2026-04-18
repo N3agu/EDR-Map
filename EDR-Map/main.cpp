@@ -4,7 +4,7 @@
 
 using std::cout;
 
-bool flagSilent = false;
+bool runSilent = false;
 
 PVOID ReadFileInMemory(const char* filePath) {
 	HANDLE fileHandle = CreateFileA(
@@ -53,7 +53,7 @@ PVOID ReadFileInMemory(const char* filePath) {
 
 	CloseHandle(fileHandle);
 
-	if (!flagSilent) {
+	if (!runSilent) {
 		cout << "[+] Loaded " << filePath << " in memory at 0x" << fileBuffer << "\n";
 	}
 
@@ -88,10 +88,27 @@ void PrintBanner() {
         github.com/N3agu/EDR-Map)""";
 }
 
-void EnumerateHookedFunctions() {
-	std::cout << "\n\n----- Enumerating Hooked Userland Functions -----\n\n";
+void PrintHelp() {
+	cout << "\n\nA lightweight scanner that detects AV/EDR userland hooks and lists active ETW telemetry sessions.\n\n";
 
-	if (!flagSilent) {
+	cout << "Usage: EDR_Map.exe [OPTIONS]\n\n";
+
+	cout << "Options:\n";
+	cout << "  -h, --help      Show this help message and exit.\n";
+	cout << "  -v, --verbose   Enable verbose output (shows debug info).\n";
+	cout << "  --etwonly       Skip userland hook scanning; ONLY enumerate ETW trace sessions.\n";
+	cout << "  --hooksonly     Skip ETW enumeration; ONLY scan for userland API hooks.\n\n";
+
+	cout << "Examples:\n";
+	cout << "  EDR_Map.exe                  # Run both modules silently (alerts only)\n";
+	cout << "  EDR_Map.exe -v               # Run both modules with full debug output\n";
+	cout << "  EDR_Map.exe --etwonly -v     # Only check ETW with full debug output\n";
+}
+
+void EnumerateHookedFunctions() {
+	cout << "\n\n----- Enumerating Hooked Userland Functions -----\n\n";
+
+	if (!runSilent) {
 		cout << "[!] Loading the clean NTDLL from Disk...\n";
 	}
 
@@ -102,7 +119,7 @@ void EnumerateHookedFunctions() {
 		return;
 	}
 
-	if (!flagSilent) {
+	if (!runSilent) {
 		cout << "\n[!] Parsing PE Headers to find Exports...\n";
 	}
 
@@ -127,7 +144,7 @@ void EnumerateHookedFunctions() {
 	DWORD exportDirectoryOffset = RvaToRawOffset(ntHeaders, exportDirectoryRva);
 	PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)diskNtdllBuffer + exportDirectoryOffset);
 
-	if (!flagSilent) {
+	if (!runSilent) {
 		cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
 		cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
 
@@ -141,7 +158,7 @@ void EnumerateHookedFunctions() {
 		return;
 	}
 
-	if (!flagSilent) {
+	if (!runSilent) {
 		cout << "[+] Found Memory NTDLL base address at 0x" << memoryNtdllBase << "\n";
 
 		cout << "\n[!] Scanning for hooks in functions...\n";
@@ -169,7 +186,7 @@ void EnumerateHookedFunctions() {
 			PVOID memoryFunctionAddress = (PVOID)((ULONG_PTR)memoryNtdllBase + functionRva);
 
 			if (memcmp(diskFunctionAddress, memoryFunctionAddress, 16) != 0) {
-				std::cout << "[*] HOOKED: " << functionName << "\n";
+				cout << "[*] HOOKED: " << functionName << "\n";
 				hooksNumber++;
 			}
 		}
@@ -186,7 +203,7 @@ void EnumerateHookedFunctions() {
 }
 
 void EnumerateETWSessions() {
-	std::cout << "\n\n----- Enumerating Active ETW Trace Sessions -----\n\n";
+	cout << "\n\n----- Enumerating Active ETW Trace Sessions -----\n\n";
 
 	const ULONG MAX_SESSIONS = 129;
 
@@ -214,7 +231,7 @@ void EnumerateETWSessions() {
 		cout << "[-] QueryAllTracesW failed (" << status << ")\n";
 	}
 	else {
-		if (!flagSilent) {
+		if (!runSilent) {
 			cout << "[+] Found " << sessionCount << " active ETW sessions\n";
 
 			cout << "\n[!] Scanning for active trace sessions...\n";
@@ -241,7 +258,7 @@ void EnumerateETWSessions() {
 			}
 		}
 
-		cout << "\n[!] Flagged " << securityTelemetryCount << " Security / Telemetry loggers\n";
+		cout << "\n[!] Flagged " << securityTelemetryCount << " Security / Telemetry loggers";
 	}
 
 	for (int i = 0; i < MAX_SESSIONS; i++) {
@@ -253,18 +270,42 @@ void EnumerateETWSessions() {
 
 
 int main(int argc, char* argv[]) {
+	bool runHooks = true, runEtw = true;
+
 	for (int i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--silent") == 0) {
-			flagSilent = true;
+		if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+			PrintBanner();
+			PrintHelp();
+			return 0;
+		} else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--silent") == 0) {
+			runSilent = true;
+		} else if (strcmp(argv[i], "--etwonly") == 0) {
+			 runHooks = false;
+		} else if (strcmp(argv[i], "--hooksonly") == 0) {
+			 runEtw = false;
+		} else {
+			PrintBanner();
+			cout << "\n\n[-] Unknown argument: " << argv[i] << "\n";
+			cout << "[*] Use -h or --help to see available options.\n";
+			return -1;
 		}
 	}
 
-	if (!flagSilent) {
+	if (!runHooks && !runEtw) {
+		cout << "[-] Error: You cannot use --etwonly and --hooksonly at the same time.\n";
+		return -1;
+	}
+
+	if (!runSilent) {
 		PrintBanner();
 	}
 
-	EnumerateHookedFunctions();
+	if (runHooks) {
+		EnumerateHookedFunctions();
+	}
 
-	EnumerateETWSessions();
+	if (runEtw) {
+		EnumerateETWSessions();
+	}
 	return 0;
 }
