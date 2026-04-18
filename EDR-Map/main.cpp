@@ -138,7 +138,13 @@ int main() {
 	for (DWORD i = 0; i < exportDirectory->NumberOfNames; ++i) {
 		char* functionName = (char*)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, addressOfNames[i]));
 
-		if (!strncmp(functionName, "Nt", 2) || !strncmp(functionName, "Zw", 2) || !strncmp(functionName, "Etw", 3)) {
+		if (!strncmp(functionName, "Nt", 2)  ||
+			!strncmp(functionName, "Zw", 2)  ||
+			!strncmp(functionName, "Etw", 3) ||
+			!strncmp(functionName, "Ldr", 3) ||
+			!strncmp(functionName, "Rtl", 3) ||
+			!strncmp(functionName, "Ki", 2)  ||
+			!strncmp(functionName, "RegNt", 5)) {
 			DWORD functionRva = addressOfFunctions[addressOfNameOrdinals[i]];
 			PVOID diskFunctionAddress = (PVOID)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, functionRva));
 			
