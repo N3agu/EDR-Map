@@ -71,7 +71,7 @@ DWORD RvaToRawOffset(PIMAGE_NT_HEADERS ntHeaders, DWORD rva) {
 
 const char* ntdllPath = "C:\\Windows\\System32\\ntdll.dll";
 
-int main() {
+void PrintBanner() {
 	cout << R"""( _____ ____  ____    __  __             
 | ____|  _ \|  _ \  |  \/  | __ _ _ __  
 |  _| | | | | |_) | | |\/| |/ _` | '_ \ 
@@ -81,13 +81,17 @@ int main() {
         github.com/N3agu/EDR-Map
                                
 )""";
+}
+
+void EnumerateHookedFunctions() {
+	std::cout << "Enumerating Hooked Userland Functions:\n\n";
 
 	cout << "[!] Loading the clean NTDLL from Disk...\n";
 	PVOID diskNtdllBuffer = ReadFileInMemory(ntdllPath);
 
 	if (!diskNtdllBuffer) {
-		cout << "[-] Failed to load NTDLL from Disk\n";
-		return -1;
+		cout << "[-] Failed to load " << ntdllPath << " from Disk\n";
+		return;
 	}
 
 	cout << "\n[!] Parsing PE Headers to find Exports...\n";
@@ -95,24 +99,24 @@ int main() {
 	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)diskNtdllBuffer;
 	if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
 		cout << "[-] DOS Signature != 'MZ'\n";
-		return -1;
+		return;
 	}
 
 	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)diskNtdllBuffer + dosHeader->e_lfanew);
 	if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
 		cout << "[-] NT Signature != 'PE\\0\\0'\n";
-		return -1;
+		return;
 	}
 
 	DWORD exportDirectoryRva = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
 	if (!exportDirectoryRva) {
 		cout << "[-] Can't find Export Directory\n";
-		return -1;
+		return;
 	}
 
 	DWORD exportDirectoryOffset = RvaToRawOffset(ntHeaders, exportDirectoryRva);
 	PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)diskNtdllBuffer + exportDirectoryOffset);
-	
+
 	cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
 	cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
 
@@ -122,7 +126,7 @@ int main() {
 	if (!memoryNtdllBase) {
 		cout << "[-] Can't get handle to the NTDLL from Memory";
 		VirtualFree(diskNtdllBuffer, 0, MEM_RELEASE);
-		return -1;
+		return;
 	}
 
 	cout << "[+] Found Memory NTDLL base address at 0x" << memoryNtdllBase << "\n";
@@ -138,20 +142,20 @@ int main() {
 	for (DWORD i = 0; i < exportDirectory->NumberOfNames; ++i) {
 		char* functionName = (char*)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, addressOfNames[i]));
 
-		if (!strncmp(functionName, "Nt", 2)  ||
-			!strncmp(functionName, "Zw", 2)  ||
+		if (!strncmp(functionName, "Nt", 2) ||
+			!strncmp(functionName, "Zw", 2) ||
 			!strncmp(functionName, "Etw", 3) ||
 			!strncmp(functionName, "Ldr", 3) ||
 			!strncmp(functionName, "Rtl", 3) ||
-			!strncmp(functionName, "Ki", 2)  ||
+			!strncmp(functionName, "Ki", 2) ||
 			!strncmp(functionName, "RegNt", 5)) {
 			DWORD functionRva = addressOfFunctions[addressOfNameOrdinals[i]];
 			PVOID diskFunctionAddress = (PVOID)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, functionRva));
-			
+
 			PVOID memoryFunctionAddress = (PVOID)((ULONG_PTR)memoryNtdllBase + functionRva);
 
 			if (memcmp(diskFunctionAddress, memoryFunctionAddress, 16) != 0) {
-				std::cout << "[*] HOOK DETECTED: " << functionName << "\n";
+				std::cout << "[*] HOOK: " << functionName << "\n";
 				hooksNumber++;
 			}
 		}
@@ -165,5 +169,13 @@ int main() {
 	}
 
 	VirtualFree(diskNtdllBuffer, 0, MEM_RELEASE);
+}
+
+
+int main() {
+	PrintBanner();
+
+	EnumerateHookedFunctions();
+
 	return 0;
 }
