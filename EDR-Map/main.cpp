@@ -38,6 +38,7 @@ PVOID ReadFileInMemory(const char* filePath) {
 	DWORD bytesRead;
 	if (!ReadFile(fileHandle, fileBuffer, fileSize, &bytesRead, NULL)) {
 		cout << "[-] ReadFile failed\n";
+		cout << "[-] Error: " << GetLastError() << "\n";
 		VirtualFree(fileBuffer, 0, MEM_RELEASE);
 		CloseHandle(fileHandle);
 		return NULL;
@@ -50,6 +51,22 @@ PVOID ReadFileInMemory(const char* filePath) {
 	CloseHandle(fileHandle);
 	cout << "[+] Loaded " << filePath << " in memory at 0x" << fileBuffer << "\n";
 	return fileBuffer;
+}
+
+// Explanation at https://www.ired.team/offensive-security/defense-evasion/retrieving-ntdll-syscall-stubs-at-run-time
+DWORD RvaToRawOffset(PIMAGE_NT_HEADERS ntHeaders, DWORD rva) {
+	PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
+
+	for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i, ++sectionHeader) {
+		DWORD sectionSize = sectionHeader->Misc.VirtualSize;
+		DWORD sectionAddress = sectionHeader->VirtualAddress;
+
+		if (rva >= sectionAddress && rva < sectionAddress + sectionSize) {
+			return rva - sectionAddress + sectionHeader->PointerToRawData;
+		}
+	}
+
+	return 0;
 }
 
 const char* ntdllPath = "C:\\Windows\\System32\\ntdll.dll";
@@ -65,13 +82,39 @@ int main() {
                                
 )""";
 
-	cout << "[!] Loading the clean NTDLL from disk...\n";
+	cout << "[!] Loading the clean NTDLL from Disk...\n";
 	PVOID cleanNtdllBuffer = ReadFileInMemory(ntdllPath);
 
 	if (!cleanNtdllBuffer) {
-		cout << "[-] Failed to load ntdll from disk";
+		cout << "[-] Failed to load NTDLL from Disk\n";
 		return -1;
 	}
+
+	cout << "\n[!] Parsing PE Headers to find Exports...\n";
+
+	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)cleanNtdllBuffer;
+	if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
+		cout << "[-] DOS Signature != 'MZ'\n";
+		return -1;
+	}
+
+	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)cleanNtdllBuffer + dosHeader->e_lfanew);
+	if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
+		cout << "[-] NT Signature != 'PE\\0\\0'\n";
+		return -1;
+	}
+
+	DWORD exportDirectoryRva = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+	if (!exportDirectoryRva) {
+		cout << "[-] Can't find Export Directory\n";
+		return -1;
+	}
+
+	DWORD exportDirectoryOffset = RvaToRawOffset(ntHeaders, exportDirectoryRva);
+	PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)cleanNtdllBuffer + exportDirectoryOffset);
+	
+	cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
+	cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
 
 	VirtualFree(cleanNtdllBuffer, 0, MEM_RELEASE);
 	return 0;
