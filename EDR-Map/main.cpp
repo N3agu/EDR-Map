@@ -83,7 +83,7 @@ void PrintBanner() {
 }
 
 void EnumerateHookedFunctions() {
-	std::cout << "\n\nEnumerating Hooked Userland Functions:\n\n";
+	std::cout << "\n\n----- Enumerating Hooked Userland Functions -----\n\n";
 
 	cout << "[!] Loading the clean NTDLL from Disk...\n";
 	PVOID diskNtdllBuffer = ReadFileInMemory(ntdllPath);
@@ -171,7 +171,7 @@ void EnumerateHookedFunctions() {
 }
 
 void EnumerateETWSessions() {
-	std::cout << "\n\nEnumerating Active ETW Trace Sessions:\n\n";
+	std::cout << "\n\n----- Enumerating Active ETW Trace Sessions -----\n\n";
 
 	const ULONG MAX_SESSIONS = 129;
 
@@ -184,7 +184,7 @@ void EnumerateETWSessions() {
 		sessionPropertiesArray[i] = (PEVENT_TRACE_PROPERTIES)VirtualAlloc(NULL, bufferSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
 		if (sessionPropertiesArray[i] == NULL) {
-			std::cerr << "[-] Can't allocate memory\n";
+			cout << "[-] Can't allocate memory\n";
 			return;
 		}
 
@@ -196,10 +196,36 @@ void EnumerateETWSessions() {
 	ULONG status = QueryAllTracesW(sessionPropertiesArray, MAX_SESSIONS, &sessionCount);
 
 	if (status != ERROR_SUCCESS) {
-		std::cerr << "[-] QueryAllTracesW failed (" << status << ")\n";
+		cout << "[-] QueryAllTracesW failed (" << status << ")\n";
 	}
 	else {
-		std::cout << "[+] Found " << sessionCount << " active ETW sessions\n\n";
+		cout << "[+] Found " << sessionCount << " active ETW sessions\n";
+
+		cout << "\n[!] Scanning for active trace sessions...\n";
+
+		int securityTelemetryCount = 0;
+
+		for (ULONG i = 0; i < sessionCount; i++) {
+			PWCHAR sessionName = (PWCHAR)((char*)sessionPropertiesArray[i] + sessionPropertiesArray[i]->LoggerNameOffset);
+
+			std::wstring nameStr(sessionName);
+
+			if (nameStr.find(L"Defender") != std::wstring::npos ||
+				nameStr.find(L"Sense") != std::wstring::npos ||			// Defender for Endpoint (MDE)
+				nameStr.find(L"Sysmon") != std::wstring::npos ||		// Sysinternals System Monitor
+				nameStr.find(L"CrowdStrike") != std::wstring::npos ||	// CrowdStrike Falcon
+				nameStr.find(L"Cylance") != std::wstring::npos ||		// Cylance
+				nameStr.find(L"Sentinel") != std::wstring::npos ||		// SentinelOne
+				nameStr.find(L"DiagLog") != std::wstring::npos ||		// Windows Diagnostic Logging
+				nameStr.find(L"Diagtrack") != std::wstring::npos ||		// Connected User Experiences and Telemetry
+				nameStr.find(L"WFP-Diagnostics") != std::wstring::npos)	// Windows Filtering Platform (Network)
+			{
+				std::wcout << L"[*] " << nameStr << L"\n";
+				securityTelemetryCount++;
+			}
+		}
+
+		cout << "\n[!] Flagged " << securityTelemetryCount << " Security / Telemetry loggers\n";
 	}
 
 	for (int i = 0; i < MAX_SESSIONS; i++) {
