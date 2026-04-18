@@ -83,22 +83,22 @@ int main() {
 )""";
 
 	cout << "[!] Loading the clean NTDLL from Disk...\n";
-	PVOID cleanNtdllBuffer = ReadFileInMemory(ntdllPath);
+	PVOID diskNtdllBuffer = ReadFileInMemory(ntdllPath);
 
-	if (!cleanNtdllBuffer) {
+	if (!diskNtdllBuffer) {
 		cout << "[-] Failed to load NTDLL from Disk\n";
 		return -1;
 	}
 
 	cout << "\n[!] Parsing PE Headers to find Exports...\n";
 
-	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)cleanNtdllBuffer;
+	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)diskNtdllBuffer;
 	if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
 		cout << "[-] DOS Signature != 'MZ'\n";
 		return -1;
 	}
 
-	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)cleanNtdllBuffer + dosHeader->e_lfanew);
+	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)diskNtdllBuffer + dosHeader->e_lfanew);
 	if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
 		cout << "[-] NT Signature != 'PE\\0\\0'\n";
 		return -1;
@@ -111,11 +111,22 @@ int main() {
 	}
 
 	DWORD exportDirectoryOffset = RvaToRawOffset(ntHeaders, exportDirectoryRva);
-	PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)cleanNtdllBuffer + exportDirectoryOffset);
+	PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)diskNtdllBuffer + exportDirectoryOffset);
 	
 	cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
 	cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
 
-	VirtualFree(cleanNtdllBuffer, 0, MEM_RELEASE);
+	cout << "\n[!] Getting handle to the NTDLL from Memory...\n";
+
+	HMODULE memoryNtdllBase = GetModuleHandleA("ntdll.dll");
+	if (!memoryNtdllBase) {
+		cout << "[-] Can't get handle to the NTDLL from Memory";
+		VirtualFree(diskNtdllBuffer, 0, MEM_RELEASE);
+		return -1;
+	}
+
+	cout << "[+] Found Memory NTDLL base address at 0x" << memoryNtdllBase << "\n";
+
+	VirtualFree(diskNtdllBuffer, 0, MEM_RELEASE);
 	return 0;
 }
