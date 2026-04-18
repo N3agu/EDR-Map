@@ -4,6 +4,8 @@
 
 using std::cout;
 
+bool flagSilent = false;
+
 PVOID ReadFileInMemory(const char* filePath) {
 	HANDLE fileHandle = CreateFileA(
 		filePath,				// File path
@@ -50,7 +52,11 @@ PVOID ReadFileInMemory(const char* filePath) {
 	}
 
 	CloseHandle(fileHandle);
-	cout << "[+] Loaded " << filePath << " in memory at 0x" << fileBuffer << "\n";
+
+	if (!flagSilent) {
+		cout << "[+] Loaded " << filePath << " in memory at 0x" << fileBuffer << "\n";
+	}
+
 	return fileBuffer;
 }
 
@@ -85,7 +91,10 @@ void PrintBanner() {
 void EnumerateHookedFunctions() {
 	std::cout << "\n\n----- Enumerating Hooked Userland Functions -----\n\n";
 
-	cout << "[!] Loading the clean NTDLL from Disk...\n";
+	if (!flagSilent) {
+		cout << "[!] Loading the clean NTDLL from Disk...\n";
+	}
+
 	PVOID diskNtdllBuffer = ReadFileInMemory(ntdllPath);
 
 	if (!diskNtdllBuffer) {
@@ -93,7 +102,9 @@ void EnumerateHookedFunctions() {
 		return;
 	}
 
-	cout << "\n[!] Parsing PE Headers to find Exports...\n";
+	if (!flagSilent) {
+		cout << "\n[!] Parsing PE Headers to find Exports...\n";
+	}
 
 	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)diskNtdllBuffer;
 	if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
@@ -116,10 +127,12 @@ void EnumerateHookedFunctions() {
 	DWORD exportDirectoryOffset = RvaToRawOffset(ntHeaders, exportDirectoryRva);
 	PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)diskNtdllBuffer + exportDirectoryOffset);
 
-	cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
-	cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
+	if (!flagSilent) {
+		cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
+		cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
 
-	cout << "\n[!] Getting handle to the NTDLL from Memory...\n";
+		cout << "\n[!] Getting handle to the NTDLL from Memory...\n";
+	}
 
 	HMODULE memoryNtdllBase = GetModuleHandleA("ntdll.dll");
 	if (!memoryNtdllBase) {
@@ -128,9 +141,11 @@ void EnumerateHookedFunctions() {
 		return;
 	}
 
-	cout << "[+] Found Memory NTDLL base address at 0x" << memoryNtdllBase << "\n";
+	if (!flagSilent) {
+		cout << "[+] Found Memory NTDLL base address at 0x" << memoryNtdllBase << "\n";
 
-	cout << "\n[!] Scanning for hooks in functions...\n";
+		cout << "\n[!] Scanning for hooks in functions...\n";
+	}
 
 	PDWORD addressOfFunctions = (PDWORD)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, exportDirectory->AddressOfFunctions));
 	PDWORD addressOfNames = (PDWORD)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, exportDirectory->AddressOfNames));
@@ -154,7 +169,7 @@ void EnumerateHookedFunctions() {
 			PVOID memoryFunctionAddress = (PVOID)((ULONG_PTR)memoryNtdllBase + functionRva);
 
 			if (memcmp(diskFunctionAddress, memoryFunctionAddress, 16) != 0) {
-				std::cout << "[*] HOOK: " << functionName << "\n";
+				std::cout << "[*] HOOKED: " << functionName << "\n";
 				hooksNumber++;
 			}
 		}
@@ -199,10 +214,11 @@ void EnumerateETWSessions() {
 		cout << "[-] QueryAllTracesW failed (" << status << ")\n";
 	}
 	else {
-		cout << "[+] Found " << sessionCount << " active ETW sessions\n";
+		if (!flagSilent) {
+			cout << "[+] Found " << sessionCount << " active ETW sessions\n";
 
-		cout << "\n[!] Scanning for active trace sessions...\n";
-
+			cout << "\n[!] Scanning for active trace sessions...\n";
+		}
 		int securityTelemetryCount = 0;
 
 		for (ULONG i = 0; i < sessionCount; i++) {
@@ -220,7 +236,7 @@ void EnumerateETWSessions() {
 				nameStr.find(L"Diagtrack") != std::wstring::npos ||		// Connected User Experiences and Telemetry
 				nameStr.find(L"WFP-Diagnostics") != std::wstring::npos)	// Windows Filtering Platform (Network)
 			{
-				std::wcout << L"[*] " << nameStr << L"\n";
+				std::wcout << L"[*] FLAGGED: " << nameStr << L"\n";
 				securityTelemetryCount++;
 			}
 		}
@@ -236,8 +252,16 @@ void EnumerateETWSessions() {
 }
 
 
-int main() {
-	PrintBanner();
+int main(int argc, char* argv[]) {
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--silent") == 0) {
+			flagSilent = true;
+		}
+	}
+
+	if (!flagSilent) {
+		PrintBanner();
+	}
 
 	EnumerateHookedFunctions();
 
