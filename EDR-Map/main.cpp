@@ -4,7 +4,11 @@
 
 using std::cout;
 
+const char* ntdllPath = "C:\\Windows\\System32\\ntdll.dll";
+
 bool runSilent = false;
+bool runHooks = true;
+bool runEtw = true;
 
 PVOID ReadFileInMemory(const char* filePath) {
 	HANDLE fileHandle = CreateFileA(
@@ -76,8 +80,6 @@ DWORD RvaToRawOffset(PIMAGE_NT_HEADERS ntHeaders, DWORD rva) {
 	return 0;
 }
 
-const char* ntdllPath = "C:\\Windows\\System32\\ntdll.dll";
-
 void PrintBanner() {
 	cout << R"""( _____ ____  ____    __  __             
 | ____|  _ \|  _ \  |  \/  | __ _ _ __  
@@ -95,18 +97,22 @@ void PrintHelp() {
 
 	cout << "Options:\n";
 	cout << "  -h, --help      Show this help message and exit.\n";
-	cout << "  -v, --verbose   Enable verbose output (shows debug info).\n";
+	cout << "  -s, --silent    Disable verbose output (shows debug info).\n";
 	cout << "  --etwonly       Skip userland hook scanning; ONLY enumerate ETW trace sessions.\n";
 	cout << "  --hooksonly     Skip ETW enumeration; ONLY scan for userland API hooks.\n\n";
 
 	cout << "Examples:\n";
-	cout << "  EDR_Map.exe                  # Run both modules silently (alerts only)\n";
-	cout << "  EDR_Map.exe -v               # Run both modules with full debug output\n";
-	cout << "  EDR_Map.exe --etwonly -v     # Only check ETW with full debug output\n";
+	cout << "  EDR_Map.exe                  # Run both modules with full debug output\n";
+	cout << "  EDR_Map.exe -s               # Run both modules silently (alerts only)\n";
+	cout << "  EDR_Map.exe --etwonly		# Run only ETW\n";
+	cout << "  EDR_Map.exe --hooksonly -s	# Run silently only Hooks\n";
 }
 
 void EnumerateHookedFunctions() {
-	cout << "\n\n----- Enumerating Hooked Userland Functions -----\n\n";
+	if (!runSilent) {
+		cout << "\n\n";
+	}
+	cout << "----- Enumerating Hooked Userland Functions -----\n\n";
 
 	if (!runSilent) {
 		cout << "[!] Loading the clean NTDLL from Disk...\n";
@@ -203,7 +209,11 @@ void EnumerateHookedFunctions() {
 }
 
 void EnumerateETWSessions() {
-	cout << "\n\n----- Enumerating Active ETW Trace Sessions -----\n\n";
+	if (!runSilent || runHooks) {
+		cout << "\n\n";
+	}
+
+	cout << "----- Enumerating Active ETW Trace Sessions -----\n\n";
 
 	const ULONG MAX_SESSIONS = 129;
 
@@ -270,8 +280,6 @@ void EnumerateETWSessions() {
 
 
 int main(int argc, char* argv[]) {
-	bool runHooks = true, runEtw = true;
-
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
 			PrintBanner();
@@ -292,7 +300,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (!runHooks && !runEtw) {
-		cout << "[-] Error: You cannot use --etwonly and --hooksonly at the same time.\n";
+		PrintBanner();
+		cout << "\n\n[-] Error: You cannot use --etwonly and --hooksonly at the same time.\n";
 		return -1;
 	}
 
