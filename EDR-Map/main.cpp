@@ -1,4 +1,5 @@
 ﻿#include <windows.h>
+#include <evntrace.h>
 #include <iostream>
 
 using std::cout;
@@ -78,13 +79,11 @@ void PrintBanner() {
 | |___| |_| |  _ <  | |  | | (_| | |_) |
 |_____|____/|_| \_\ |_|  |_|\__,_| .__/ 
                                  |_|    
-        github.com/N3agu/EDR-Map
-                               
-)""";
+        github.com/N3agu/EDR-Map)""";
 }
 
 void EnumerateHookedFunctions() {
-	std::cout << "Enumerating Hooked Userland Functions:\n\n";
+	std::cout << "\n\nEnumerating Hooked Userland Functions:\n\n";
 
 	cout << "[!] Loading the clean NTDLL from Disk...\n";
 	PVOID diskNtdllBuffer = ReadFileInMemory(ntdllPath);
@@ -171,11 +170,51 @@ void EnumerateHookedFunctions() {
 	VirtualFree(diskNtdllBuffer, 0, MEM_RELEASE);
 }
 
+void EnumerateETWSessions() {
+	std::cout << "\n\nEnumerating Active ETW Trace Sessions:\n\n";
+
+	const ULONG MAX_SESSIONS = 129;
+
+	PEVENT_TRACE_PROPERTIES sessionPropertiesArray[MAX_SESSIONS];
+	ULONG sessionCount = 0;
+
+	for (int i = 0; i < MAX_SESSIONS; i++) {
+		size_t bufferSize = sizeof(EVENT_TRACE_PROPERTIES) + (2 * MAX_PATH * sizeof(WCHAR));
+
+		sessionPropertiesArray[i] = (PEVENT_TRACE_PROPERTIES)VirtualAlloc(NULL, bufferSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+		if (sessionPropertiesArray[i] == NULL) {
+			std::cerr << "[-] Can't allocate memory\n";
+			return;
+		}
+
+		sessionPropertiesArray[i]->Wnode.BufferSize = (ULONG)bufferSize;
+		sessionPropertiesArray[i]->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
+		sessionPropertiesArray[i]->LogFileNameOffset = sizeof(EVENT_TRACE_PROPERTIES) + (MAX_PATH * sizeof(WCHAR));
+	}
+
+	ULONG status = QueryAllTracesW(sessionPropertiesArray, MAX_SESSIONS, &sessionCount);
+
+	if (status != ERROR_SUCCESS) {
+		std::cerr << "[-] QueryAllTracesW failed (" << status << ")\n";
+	}
+	else {
+		std::cout << "[+] Found " << sessionCount << " active ETW sessions\n\n";
+	}
+
+	for (int i = 0; i < MAX_SESSIONS; i++) {
+		if (sessionPropertiesArray[i] != NULL) {
+			VirtualFree(sessionPropertiesArray[i], 0, MEM_RELEASE);
+		}
+	}
+}
+
 
 int main() {
 	PrintBanner();
 
 	EnumerateHookedFunctions();
 
+	EnumerateETWSessions();
 	return 0;
 }
