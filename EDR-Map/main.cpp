@@ -104,8 +104,8 @@ void PrintHelp() {
 	cout << "Examples:\n";
 	cout << "  EDR_Map.exe                  # Run both modules with full debug output\n";
 	cout << "  EDR_Map.exe -s               # Run both modules silently (alerts only)\n";
-	cout << "  EDR_Map.exe --etwonly		# Run only ETW\n";
-	cout << "  EDR_Map.exe --hooksonly -s	# Run silently only Hooks\n";
+	cout << "  EDR_Map.exe --etwonly        # Run only ETW\n";
+	cout << "  EDR_Map.exe --hooksonly -s   # Run silently only Hooks\n";
 }
 
 void EnumerateHookedFunctions() {
@@ -254,14 +254,34 @@ void EnumerateETWSessions() {
 			std::wstring nameStr(sessionName);
 
 			if (nameStr.find(L"Defender") != std::wstring::npos ||
-				nameStr.find(L"Sense") != std::wstring::npos ||			// Defender for Endpoint (MDE)
-				nameStr.find(L"Sysmon") != std::wstring::npos ||		// Sysinternals System Monitor
-				nameStr.find(L"CrowdStrike") != std::wstring::npos ||	// CrowdStrike Falcon
-				nameStr.find(L"Cylance") != std::wstring::npos ||		// Cylance
-				nameStr.find(L"Sentinel") != std::wstring::npos ||		// SentinelOne
-				nameStr.find(L"DiagLog") != std::wstring::npos ||		// Windows Diagnostic Logging
-				nameStr.find(L"Diagtrack") != std::wstring::npos ||		// Connected User Experiences and Telemetry
-				nameStr.find(L"WFP-Diagnostics") != std::wstring::npos)	// Windows Filtering Platform (Network)
+				nameStr.find(L"Sense") != std::wstring::npos ||				// Defender for Endpoint (MDE)
+				nameStr.find(L"Sysmon") != std::wstring::npos ||			// Sysinternals System Monitor
+				nameStr.find(L"DiagLog") != std::wstring::npos ||			// Windows Diagnostic Logging
+				nameStr.find(L"Diagtrack") != std::wstring::npos ||			// Connected User Experiences and Telemetry
+				nameStr.find(L"WFP-Diagnostics") != std::wstring::npos ||	// Windows Filtering Platform (Network)
+				nameStr.find(L"SecTelem") != std::wstring::npos ||			// Windows Security Telemetry
+				nameStr.find(L"Security-Auditing") != std::wstring::npos || // Advanced Audit Policies
+				nameStr.find(L"CrowdStrike") != std::wstring::npos ||		// CrowdStrike Falcon
+				nameStr.find(L"Sentinel") != std::wstring::npos ||			// SentinelOne
+				nameStr.find(L"Cylance") != std::wstring::npos ||			// Cylance / BlackBerry
+				nameStr.find(L"CarbonBlack") != std::wstring::npos ||		// VMware Carbon Black
+				nameStr.find(L"cb") != std::wstring::npos ||				// Carbon Black alternate
+				nameStr.find(L"Tanium") != std::wstring::npos ||			// Tanium
+				nameStr.find(L"Cortex") != std::wstring::npos ||			// Palo Alto Cortex XDR
+				nameStr.find(L"Cyvera") != std::wstring::npos ||			// Palo Alto Traps/Cortex legacy
+				nameStr.find(L"FireEye") != std::wstring::npos ||			// FireEye / Trellix
+				nameStr.find(L"xagt") != std::wstring::npos ||				// FireEye Agent
+				nameStr.find(L"Elastic") != std::wstring::npos ||			// Elastic Security
+				nameStr.find(L"Symantec") != std::wstring::npos ||			// Broadcom/Symantec
+				nameStr.find(L"SymEFA") != std::wstring::npos ||			// Symantec Extended File Attributes
+				nameStr.find(L"McAfee") != std::wstring::npos ||			// McAfee / Trellix
+				nameStr.find(L"mfe") != std::wstring::npos ||				// McAfee legacy/drivers
+				nameStr.find(L"Sophos") != std::wstring::npos ||			// Sophos Intercept X
+				nameStr.find(L"TrendMicro") != std::wstring::npos ||		// Trend Micro
+				nameStr.find(L"Kaspersky") != std::wstring::npos ||			// Kaspersky
+				nameStr.find(L"Bitdefender") != std::wstring::npos ||		// Bitdefender GravityZone
+				nameStr.find(L"Qualys") != std::wstring::npos ||			// Qualys Cloud Agent
+				nameStr.find(L"Splunk") != std::wstring::npos)				// Splunk Universal Forwarder
 			{
 				std::wcout << L"[*] FLAGGED: " << nameStr << L"\n";
 				securityTelemetryCount++;
