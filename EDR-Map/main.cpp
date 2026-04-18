@@ -127,6 +127,37 @@ int main() {
 
 	cout << "[+] Found Memory NTDLL base address at 0x" << memoryNtdllBase << "\n";
 
+	cout << "\n[!] Scanning for hooks in functions...\n";
+
+	PDWORD addressOfFunctions = (PDWORD)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, exportDirectory->AddressOfFunctions));
+	PDWORD addressOfNames = (PDWORD)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, exportDirectory->AddressOfNames));
+	PWORD addressOfNameOrdinals = (PWORD)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, exportDirectory->AddressOfNameOrdinals));
+
+	int hooksNumber = 0;
+
+	for (DWORD i = 0; i < exportDirectory->NumberOfNames; ++i) {
+		char* functionName = (char*)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, addressOfNames[i]));
+
+		if (!strncmp(functionName, "Nt", 2) || !strncmp(functionName, "Zw", 2) || !strncmp(functionName, "Etw", 3)) {
+			DWORD functionRva = addressOfFunctions[addressOfNameOrdinals[i]];
+			PVOID diskFunctionAddress = (PVOID)((ULONG_PTR)diskNtdllBuffer + RvaToRawOffset(ntHeaders, functionRva));
+			
+			PVOID memoryFunctionAddress = (PVOID)((ULONG_PTR)memoryNtdllBase + functionRva);
+
+			if (memcmp(diskFunctionAddress, memoryFunctionAddress, 16) != 0) {
+				std::cout << "[*] HOOK DETECTED: " << functionName << "\n";
+				hooksNumber++;
+			}
+		}
+	}
+
+	if (!hooksNumber) {
+		cout << "\n[-] No hooks detected in the functions";
+	}
+	else {
+		cout << "\n[+] Found " << hooksNumber << " hooks";
+	}
+
 	VirtualFree(diskNtdllBuffer, 0, MEM_RELEASE);
 	return 0;
 }
