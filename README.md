@@ -34,6 +34,26 @@ EDR-Map bypasses standard opcode scanning (like looking for `E9` JMP instruction
 ### 2. ETW Telemetry 
 The tool allocates the necessary memory structures for `EVENT_TRACE_PROPERTIES` and queries the kernel for active trace sessions. It then parses the wide strings returned by the OS and checks them against a hardcoded list to identify known security logging services.
 
+## Screenshots
+
+<details open>
+  <summary><strong>Screenshot of a Full Scan</strong></summary>
+  
+  ![](https://raw.githubusercontent.com/N3agu/EDR-Map/refs/heads/main/Images/full.png)
+</details>
+
+<details>
+  <summary><strong>Screenshot of Etwonly</strong></summary>
+  
+  ![](https://raw.githubusercontent.com/N3agu/EDR-Map/refs/heads/main/Images/etw.png)
+</details>
+
+<details>
+  <summary><strong>Screenshot of Hooksonly</strong></summary>
+  
+  ![](https://raw.githubusercontent.com/N3agu/EDR-Map/refs/heads/main/Images/hooks.png)
+</details>
+
 ## Usage
 EDR-Map can be run with full visual output or silently to only output critical alerts.
 ```
