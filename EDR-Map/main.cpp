@@ -152,7 +152,7 @@ void EnumerateHookedFunctions() {
 
 	if (!runSilent) {
 		cout << "[+] Export Directory found at RVA 0x" << std::hex << exportDirectoryRva << "\n";
-		cout << "[+] Found " << exportDirectory->NumberOfNames << " Exported Functions\n";
+		cout << "[+] Found " << std::dec << exportDirectory->NumberOfNames << " Exported Functions\n";
 
 		cout << "\n[!] Getting handle to the NTDLL from Memory...\n";
 	}
