@@ -35,8 +35,9 @@ EDR-Map bypasses standard opcode scanning (like looking for `E9` JMP instruction
 The tool allocates the necessary memory structures for `EVENT_TRACE_PROPERTIES` and queries the kernel for active trace sessions. It then parses the wide strings returned by the OS and checks them against a hardcoded list to identify known security logging services.
 
 ## AVs & EDRs
-- Windows Defender ([wd_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/wd_hooks.md))
-- Bitdefender ([bitdefender_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/bitdefender_hooks.md))
+- Bitdefender Free, 18/04/2026 ([bitdefender_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/bitdefender_hooks.md))
+- Windows Defender, 19/04/2026 ([wd_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/wd_hooks.md))
+- Avast One Free, 19/04/2026 ([avastone_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/avastone_hooks.md))
 
 ## Screenshots
 

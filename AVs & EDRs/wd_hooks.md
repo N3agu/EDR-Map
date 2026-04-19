@@ -1,5 +1,4 @@
 ```
-[!] Scanning for hooks in functions...
 [*] HOOKED: KiUserInvertedFunctionTable
 [*] HOOKED: LdrSystemDllInitBlock
 [*] HOOKED: RtlNtdllName

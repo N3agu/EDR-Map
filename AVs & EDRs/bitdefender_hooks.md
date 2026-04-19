@@ -1,6 +1,4 @@
 ```
------ Enumerating Hooked Userland Functions -----
-
 [*] HOOKED: KiUserInvertedFunctionTable
 [*] HOOKED: LdrSystemDllInitBlock
 [*] HOOKED: NtAdjustPrivilegesToken
