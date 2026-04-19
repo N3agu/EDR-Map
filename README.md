@@ -34,8 +34,9 @@ EDR-Map bypasses standard opcode scanning (like looking for `E9` JMP instruction
 ### 2. ETW Telemetry 
 The tool allocates the necessary memory structures for `EVENT_TRACE_PROPERTIES` and queries the kernel for active trace sessions. It then parses the wide strings returned by the OS and checks them against a hardcoded list to identify known security logging services.
 
-## Examples
-- Bitdefender ([bitdefender_hooks.md](https://raw.githubusercontent.com/N3agu/EDR-Map/refs/heads/main/Examples/bitdefender_hooks.md))
+## AVs & EDRs
+- Windows Defender ([wd_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/wd_hooks.md))
+- Bitdefender ([bitdefender_hooks.md](https://github.com/N3agu/EDR-Map/blob/main/AVs%20&%20EDRs/bitdefender_hooks.md))
 
 ## Screenshots
 
